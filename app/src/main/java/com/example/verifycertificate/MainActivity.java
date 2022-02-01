@@ -8,7 +8,6 @@ import android.os.StrictMode;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.IOException;
@@ -27,7 +26,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView xmlResult;
     private TextView xmlMessage;
     private TextView xmlDomain;
-    private ScrollView xmlScroll;
     private StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 
     @Override
@@ -40,24 +38,22 @@ public class MainActivity extends AppCompatActivity {
         xmlResult = findViewById(R.id.textViewResult);
         xmlMessage = findViewById(R.id.textViewMessage);
         xmlDomain = findViewById(R.id.textViewDomain);
-        xmlScroll = findViewById(R.id.scrollView);
 
         xmlVerify.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String inputURL = xmlUrl.getText().toString();
+                String inputUrl = xmlUrl.getText().toString();
                 xmlMessage.setText("");
-                xmlDomain.setText("Domain: " + inputURL);
+                xmlDomain.setText("Domain: " + inputUrl);
                 String validOutput = "";
                 try {
-                    validOutput = verifyURL(inputURL);
+                    validOutput = getCertificates(inputUrl);
                 }
                 catch(SSLHandshakeException e){
                     String errString = "Error:\n" + e.getMessage();
                     xmlResult.setTextColor(Color.RED);
-                    xmlResult.setText("Invalid Certificate");
+                    xmlResult.setText("Invalid");
                     xmlMessage.setText(errString);
-
                 }
                 catch(Exception e) {
                     String errString = "Error:\n" + e.getMessage();
@@ -68,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
 
                 if(validOutput != "") {
                     xmlResult.setTextColor(Color.GREEN);
-                    xmlResult.setText("Valid Certificate");
+                    xmlResult.setText("Valid");
                     xmlMessage.setText(validOutput);
                 }
 
@@ -77,31 +73,39 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private String verifyURL(String inputURL) throws IOException {
+    /**
+     * Returns a String representation of the given URL's Certificate Chain.
+     * Throws an IOException if there are any connection errors.
+     */
+    private static String getCertificates(String inputURL) throws IOException {
         String https = "https://";
+        String formattedCerts = "";
         URL url = new URL(https + inputURL);
         HttpsURLConnection urlConnection = null;
         urlConnection = (HttpsURLConnection) url.openConnection();
         try {
             int status = urlConnection.getResponseCode();
+            formattedCerts = formatCerts(urlConnection.getServerCertificates());
         }
         finally {
+            urlConnection.disconnect();
         }
-        String formattedCerts = formatCerts(urlConnection.getServerCertificates());
-        urlConnection.disconnect();
         return formattedCerts;
     }
 
-    private String formatCerts(Certificate[] certs) {
+    /**
+     * Takes an ordered array of Certificates and formats the necessary
+     * information into the returned String.
+     */
+    private static String formatCerts(Certificate[] certs) {
         StringBuilder buildCerts = new StringBuilder();
-        buildCerts.append("Certificates:\n\n");
+        buildCerts.append("Certificate Chain:\n\n");
         for (int i = 0; i < certs.length; i = i + 1) {
             X509Certificate cert = (X509Certificate) certs[i];
-            buildCerts.append(" " + (i+1) + ":\n");
-            buildCerts.append("   Issuer: " + cert.getIssuerDN().toString() + "\n\n");
-            buildCerts.append("   Expires: " + cert.getNotAfter().toString() + "\n\n\n");
+            buildCerts.append(" ").append(i + 1).append(":\n");
+            buildCerts.append("   Issuer: ").append(cert.getIssuerDN().toString()).append("\n\n");
+            buildCerts.append("   Expires: ").append(cert.getNotAfter().toString()).append("\n\n\n");
         }
-
         return buildCerts.toString();
     }
 }
