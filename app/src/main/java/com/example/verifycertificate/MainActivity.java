@@ -8,6 +8,7 @@ import android.os.StrictMode;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import java.io.IOException;
@@ -26,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView xmlResult;
     private TextView xmlMessage;
     private TextView xmlDomain;
+    private ScrollView xmlScroll;
     private StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
 
     @Override
@@ -38,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         xmlResult = findViewById(R.id.textViewResult);
         xmlMessage = findViewById(R.id.textViewMessage);
         xmlDomain = findViewById(R.id.textViewDomain);
+        xmlScroll = findViewById(R.id.scrollView);
 
         xmlVerify.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -68,8 +71,10 @@ public class MainActivity extends AppCompatActivity {
                     xmlResult.setText("Valid Certificate");
                     xmlMessage.setText(validOutput);
                 }
+
             }
         });
+
     }
 
     private String verifyURL(String inputURL) throws IOException {
@@ -81,22 +86,22 @@ public class MainActivity extends AppCompatActivity {
             int status = urlConnection.getResponseCode();
         }
         finally {
-            urlConnection.disconnect();
         }
         String formattedCerts = formatCerts(urlConnection.getServerCertificates());
+        urlConnection.disconnect();
         return formattedCerts;
     }
 
     private String formatCerts(Certificate[] certs) {
-        String certString = "";
-        if(certs.length > 0) {
-            X509Certificate cert = (X509Certificate) certs[0];
-            certString += "Issuer: " + cert.getIssuerDN().toString() + "\n\n";
-            certString += "Expires: " + cert.getNotAfter().toString();
+        StringBuilder buildCerts = new StringBuilder();
+        buildCerts.append("Certificates:\n\n");
+        for (int i = 0; i < certs.length; i = i + 1) {
+            X509Certificate cert = (X509Certificate) certs[i];
+            buildCerts.append(" " + (i+1) + ":\n");
+            buildCerts.append("   Issuer: " + cert.getIssuerDN().toString() + "\n\n");
+            buildCerts.append("   Expires: " + cert.getNotAfter().toString() + "\n\n\n");
         }
-        else {
-            certString = "Certificate Data Unavailable";
-        }
-        return certString;
+
+        return buildCerts.toString();
     }
 }
