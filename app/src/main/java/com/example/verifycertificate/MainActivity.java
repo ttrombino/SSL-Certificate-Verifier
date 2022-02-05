@@ -2,6 +2,7 @@ package com.example.verifycertificate;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.StrictMode;
@@ -11,12 +12,17 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLHandshakeException;
 
+import java.security.cert.CRLException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
 
 public class MainActivity extends AppCompatActivity {
@@ -77,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
      * Returns a String representation of the given URL's Certificate Chain.
      * Throws an IOException if there are any connection errors.
      */
-    private static String getCertificates(String inputURL) throws IOException {
+    private String getCertificates(String inputURL) throws IOException, CertificateException, CRLException {
         String https = "https://";
         String formattedCerts = "";
         URL url = new URL(https + inputURL);
@@ -85,12 +91,30 @@ public class MainActivity extends AppCompatActivity {
         urlConnection = (HttpsURLConnection) url.openConnection();
         try {
             int status = urlConnection.getResponseCode();
-            formattedCerts = formatCerts(urlConnection.getServerCertificates());
+            Certificate[] certs = urlConnection.getServerCertificates();
+            checkForRevocation(certs);
+
+            formattedCerts = formatCerts(certs);
         }
         finally {
             urlConnection.disconnect();
         }
         return formattedCerts;
+    }
+
+    private void checkForRevocation(Certificate[] certs) throws CertificateException, CRLException, SSLHandshakeException {
+
+        InputStream inStream = getResources().openRawResource(R.raw.rmixedsha);
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509CRL crl = (X509CRL) cf.generateCRL(inStream);
+        for(Certificate cert : certs) {
+//            X509Certificate cert = (X509Certificate) c;
+
+            if (crl.isRevoked(cert)){
+                throw new SSLHandshakeException("Certificate Revoked");
+            }
+        }
+
     }
 
     /**
